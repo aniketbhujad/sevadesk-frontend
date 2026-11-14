@@ -110,7 +110,9 @@ export const api = {
       return request(`/reports/services?${qs}`);
     },
     getExportUrl: (type = 'collections', from = '', to = '') => {
-      return `${API_BASE}/reports/export.csv?type=${type}&from=${from}&to=${to}`;
+      const token = localStorage.getItem('sevadesk_token');
+      const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : '';
+      return `${API_BASE}/reports/export.csv?type=${type}&from=${from}&to=${to}${tokenQuery}`;
     },
   },
 

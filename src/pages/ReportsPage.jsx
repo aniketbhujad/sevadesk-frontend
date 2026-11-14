@@ -47,13 +47,43 @@ export default function ReportsPage() {
     loadReport();
   }, [activeTab, fromDate, toDate]);
 
-  const handleExportCsv = () => {
-    const exportUrl = api.reports.getExportUrl(
-      activeTab === 'outstanding' ? 'outstanding' : 'collections',
-      fromDate,
-      toDate
-    );
-    window.open(exportUrl, '_blank');
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    const type = activeTab === 'outstanding' ? 'outstanding' : 'collections';
+    const exportUrl = api.reports.getExportUrl(type, fromDate, toDate);
+    const token = localStorage.getItem('sevadesk_token');
+
+    try {
+      setExporting(true);
+      const res = await fetch(exportUrl, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        // Fallback to direct window open (which includes &token=... in URL)
+        window.open(exportUrl, '_blank');
+        return;
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `sevadesk-${type}-${fromDate}-to-${toDate}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.warn('In-app export fetch failed, falling back to direct URL:', err.message);
+      window.open(exportUrl, '_blank');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -64,9 +94,9 @@ export default function ReportsPage() {
           <p className="page-subtitle">Real-time collections, payment method reconciliations, and service volumes</p>
         </div>
 
-        <button className="btn btn-primary btn-sm" onClick={handleExportCsv}>
+        <button className="btn btn-primary btn-sm" onClick={handleExportCsv} disabled={exporting}>
           <Download size={16} />
-          <span>Export Excel CSV</span>
+          <span>{exporting ? 'Downloading...' : 'Export Excel CSV'}</span>
         </button>
       </div>
 
